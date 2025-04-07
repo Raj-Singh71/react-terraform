@@ -1,0 +1,26 @@
+.app-container {
+  text-align: center;
+  padding: 50px;
+  background-color: #f0f4f8;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: #333;
+  min-height: 100vh;
+}
+
+h1 {
+  color: #0078d4;
+  margin-bottom: 20px;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+li {
+  background: #e0e0e0;
+  margin: 10px auto;
+  padding: 10px 20px;
+  border-radius: 8px;
+  display: inline-block;
+}
