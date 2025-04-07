@@ -8,23 +8,16 @@ pipeline {
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Clone Repository') {
             steps {
                 git branch: 'main', url: 'https://github.com/PawanK7390/react-azure-deploy.git'
             }
         }
 
-        stage('Terraform Init') {
+        stage('Initialize & Import Terraform') {
             steps {
                 dir('terraform') {
                     bat 'terraform init || exit /b'
-                }
-            }
-        }
-
-        stage('Terraform Import') {
-            steps {
-                dir('terraform') {
                     bat '''
                         terraform import azurerm_resource_group.rg "/subscriptions/eea7dd66-806c-47a7-912f-2e3f1af71f5e/resourceGroups/rg-react" || exit /b
                         terraform import azurerm_service_plan.asp "/subscriptions/eea7dd66-806c-47a7-912f-2e3f1af71f5e/resourceGroups/rg-react/providers/Microsoft.Web/serverFarms/react-app-plan" || exit /b
@@ -34,7 +27,7 @@ pipeline {
             }
         }
 
-        stage('Terraform Plan & Apply') {
+        stage('Terraform Apply Infrastructure') {
             steps {
                 dir('terraform') {
                     bat 'terraform plan -out=tfplan || exit /b'
@@ -43,14 +36,14 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies & Build React') {
+        stage('Setup React App') {
             steps {
                 bat 'npm install || exit /b'
                 bat 'npm run build || exit /b'
             }
         }
 
-        stage('Check Build Folder') {
+        stage('Validate React Build Output') {
             steps {
                 script {
                     def buildExists = fileExists('build\\index.html')
@@ -61,7 +54,7 @@ pipeline {
             }
         }
 
-        stage('Deploy to Azure using az webapp deploy') {
+        stage('Push Build to Azure') {
             steps {
                 withCredentials([azureServicePrincipal(credentialsId: "${AZURE_CREDENTIALS_ID}")]) {
                     bat 'echo Logging into Azure...'
@@ -71,10 +64,10 @@ pipeline {
                     bat 'az webapp config appsettings set --resource-group %RESOURCE_GROUP% --name %APP_SERVICE_NAME% --settings SCM_DO_BUILD_DURING_DEPLOYMENT=false'
                     bat 'az webapp config appsettings set --resource-group %RESOURCE_GROUP% --name %APP_SERVICE_NAME% --settings WEBSITES_ENABLE_APP_SERVICE_STORAGE=true'
 
-                    bat 'echo Deploying React app using build/ folder...'
+                    bat 'echo Uploading build to App Service...'
                     bat 'az webapp deploy --resource-group %RESOURCE_GROUP% --name %APP_SERVICE_NAME% --src-path build --type static || exit /b'
 
-                    bat 'echo Restarting App Service...'
+                    bat 'echo Restarting Web App...'
                     bat 'az webapp restart --resource-group %RESOURCE_GROUP% --name %APP_SERVICE_NAME%'
                 }
             }
@@ -83,10 +76,10 @@ pipeline {
 
     post {
         success {
-            echo ' React App Deployed Successfully using az webapp deploy!'
+            echo '✅ React App Successfully Deployed to Azure!'
         }
         failure {
-            echo ' Deployment Failed. Check logs and troubleshoot.'
+            echo '❌ Deployment Failed. Please check the error logs above.'
         }
         always {
             cleanWs()
